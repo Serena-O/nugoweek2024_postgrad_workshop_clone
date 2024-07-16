@@ -1,0 +1,11 @@
+Sample	Disease
+CD-6KUCT	Control
+CD-9OS5Y	Control
+CD-9WOBP	Control
+CD-77FXR	Control
+HC-9SNJ4	Disease
+HC-9X47O	Disease
+HC-AMR37	Disease
+HC-AUP8B	Disease
+QC_PREFA02	QC
+QC_PREFB02	QC
