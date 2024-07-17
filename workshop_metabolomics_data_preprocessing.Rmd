@@ -33,6 +33,8 @@ BiocManager::install("xcms")
 BiocManager::install("MsExperiment")
 BiocManager::install("Spectra")
 
+install.packages("RColorBrewer")
+
 ```
 
 And load the required packages:
@@ -41,6 +43,7 @@ And load the required packages:
 library(xcms)
 library(MsExperiment)
 library(Spectra)
+library(RColorBrewer)
 ```
 
 ## Review of LC-MS data
@@ -157,7 +160,6 @@ plot(tic,main = "Total Ion Chromatogram")
 We can also create boxplots representing the distribution of the total ion currents per data file. Such plots can be very useful to spot potentially problematic MS runs.
 
 ```{r}
-library(RColorBrewer)
 ## Generate a color set for the three groups
 group_colors <- paste0(brewer.pal(3, "Set1")[1:3], "60")
 names(group_colors) <- c("Control", "Disease","QC")
@@ -196,13 +198,13 @@ It is strongly discouraged to use these default parameter settings for any of yo
 
 Let's take another look at our known compound that we inspected earlier:
 
-```{r}
+```{r warning=FALSE}
 #define rt & mz ranges
 rtr <- c(515, 530)
 mzr <- 538.3212 + c(-0.005, 0.005)
 ## extract the chromatogram & add legend
 chr_raw <- chromatogram(ms_data, mz = mzr, rt = rtr)
-plot(chr_raw, col = group_colors[chr_raw$Disease],main = "Met - Cholate",xaxt ="n") 
+plot(chr_raw, col = group_colors[chr_raw$Disease],main = "Met - Cholate",xaxt ="n",lwd = 2) 
 legend(x = 525, y = 6e5, legend = c("Control","Disease","QC"),lty = 1,col =  group_colors,cex = 1)
 axis(1, at = seq(515, 530, by = 1), las=2)
 
@@ -226,7 +228,7 @@ As expected, no peaks are found by the algorithm.
 From the raw chromatogram, we can see that we have a 4 chromatographic peaks present in 2 of the control samples, and in 2 of the QC samples, but the peak seems to be absent in the disease samples. 
 
 
-We can see that the peak width is quite small, at it's smallest it is about 5 seconds, so of course, running with a default minimum peakwidth of 20, yields no results.  In general, the lower and upper peak width should be set to include most of the expected chromatographic peak widths. A good rule of thumb is to set it from about half to about twice the average expected peak width. For the present data set we thus set peakwidth = c(2, 10).
+We can see that the peak width is quite small, at it's smallest it is about 5 seconds, so of course, running with a default minimum peakwidth of 20, yields no results.  In general, the lower and upper peak width should be set to include most of the expected chromatographic peak widths. A good rule of thumb is to set it from about half to about twice the average expected peak width. For the present data set we thus set `peakwidth = c(2, 10)`.
 
 
 Let's try again:
@@ -244,11 +246,17 @@ chromPeaks(res)
 We still don't detect any peaks, so let's delve a little bit deeper into the parameters and find out what we can change to improve this.
 
 
-From the help page we gather:
+```{r}
+?CentWaveParam
+```
+
+
+
+On the help page, we find a detailed description of the different parameters, such as:
 
 * snthresh	numeric(1) defining the signal to noise ratio cutoff.
 
-When using centWave in extracted ion chromatograms, it has difficulty estimating the noise level, so it is advised to set this quite low (or even zero) and later use a higher value when performing peak detection in the complete data range.
+When using centWave in extracted ion chromatograms, it often fails to  estimate the noise level correctly, so it is advised to set the s/n threshold quite low and later use a higher value when performing peak detection in the complete data range.
 
 
 
@@ -265,11 +273,14 @@ chromPeaks(res)
 ```
 
 
-Now we do detect peaks in two of the samples, we can also plot the integration areas:
+Now we do detect peaks in two of the samples, for each peak we get: "rt" (retention time of the peak apex), "rtmin" (minimal retention time), "rtmax" (maximal retention time), "into" (integrated, original, intensity of the peak), "maxo" (maximum intentity of the peak).
+
+
+We can also plot the integration areas:
 
 
 ```{r}
-plot(res)
+plot(res,  col = group_colors[chr_raw$Disease],main = "Met - Cholate")
 ```
 
 
@@ -285,11 +296,14 @@ chromPeaks(res)
 ```
 
 ```{r}
-plot(res)
+plot(res,col = group_colors[chr_raw$Disease],main = "Met - Cholate")
 ```
 
 
-Now we already observe some strange behaviour! Notice that 4/5 peaks have a sn > 2 in our latest results, while in the first run with snthresh = 2, only two peaks were integrated. Indeed, the centWave algorithm can behave quite strange, especially in small rt & m/z ranges, so data evaluation afterwards is important. Also, we note that the small peak that is lying in the noise level in the plot, also get's integrated. 
+Now we already observe some strange behavior! Notice that 4/5 peaks have a sn > 2 in our latest results, while in the first run with snthresh = 2, only two peaks were integrated. Indeed, the centWave algorithm can behave quite strange, especially in small rt & m/z ranges, so data evaluation afterwards is important. Also, we note that the small peak that is lying in the noise level in the plot, also get's integrated. To mitigate this, we change the `noise`parameter to 80000. 
+
+From the help page: *numeric(1) allowing to set a minimum intensity required for centroids to be considered in the first analysis step (centroids with intensity < noise are omitted from ROI detection).*
+
 
 
 ```{r warning=FALSE}
@@ -302,14 +316,18 @@ chromPeaks(res)
 ```
 
 ```{r}
-plot(res)
+plot(res,col = group_colors[chr_raw$Disease],main = "Met - Cholate")
 ```
+
+
+
+With these settings, all the peaks in the EIC are correctly picked by the algorithm.
 
 
 
 Another important parameter to define for your data is ppm. 
 
-* numeric(1) defining the maximal tolerated m/z deviation in consecutive scans in parts per million (ppm) for the initial ROI definition.
+*numeric(1) defining the maximal tolerated m/z deviation in consecutive scans in parts per million (ppm) for the initial ROI definition.*
 
 
 This is highly dependent on the instrument you are using and the precision you're expecting. In the next code block, we will check what the expected ppm deviation is for the ion.
@@ -328,7 +346,8 @@ target <- ms_data[c(9,10)] |>
 plot(target)
 ```
 
-We can observe some scattering of the data points around an m/z of 105.05 in the lower panel of the above plot. This scattering also decreases with increasing signal intensity (as for many MS instruments the precision of the signal increases with the intensity). To quantify the observed differences in m/z values for the signal of the ion we restrict the data to a  region with signal for the  ion. Below we first subset the data to the first file and then restrict the m/z range to values between 538.319 and 538.321
+
+We can observe some scattering of the data points around an m/z of 538.320 in the lower panel of the above plot. This scattering also decreases with increasing signal intensity (as for many MS instruments the precision of the signal increases with the intensity). To quantify the observed differences in m/z values for the signal of the ion we restrict the data to a  region with signal for the  ion. Below we first subset the data to the first file and then restrict the m/z range to values between 538.319 and 538.321
 
 ```{r}
 #' Reduce the data set to signal of the ion
@@ -338,7 +357,7 @@ signal <- target[1] |>
 ```
 
 
-We next extract the m/z values of the peaks from the consecutive scans and calculate the absolute difference between them.and express these differences in ppm (parts per million) of the average m/z of the peaks.
+We  extract the m/z values of the peaks from the consecutive scans and calculate the absolute difference between them.and express these differences in ppm (parts per million) of the average m/z of the peaks.
 
 ```{r}
 #' Calculate the difference in m/z values between scans
@@ -359,11 +378,11 @@ It seems like the data is coming from a highly accurate instrument, as the ppm d
 
 
 
-It's recommended to perform the above step on a few known compounds and/or internal standard to get a good idea of what kind of parameters you should use for our dataset. Keeping our limited time in mind, we will try and see how we fare with our newly chosen parameters (leaving snthresh to the default of 10, to save some time and taking into account that centWave should better estimate the noise in the whole chromatogram).
+It's recommended to perform the above steps on a few known compounds and/or internal standard to get a good idea of what kind of parameters you should use for our dataset. Keeping our limited time in mind, we will try and see how we fare with our newly chosen parameters (leaving snthresh to the default of 10, to save some time and taking into account that centWave should better estimate the noise in the whole chromatogram). Also, we set `verboseBetaColumns = TRUE`, this fairly new parameter calculates new quality metrics for all the peaks based on the work by [Kumler et al. (2023)](https://bmcbioinformatics.biomedcentral.com/articles/10.1186/s12859-023-05533-4).
 
 
 
-```{r}
+```{r warning=FALSE}
 #' Perform peak detection on the full data set
 cwp <- CentWaveParam(peakwidth = c(2, 10), ppm = 5,noise = 8e4,verboseBetaColumns = TRUE)
 mse <- findChromPeaks(ms_data, param = cwp)
@@ -374,9 +393,9 @@ mse <- findChromPeaks(ms_data, param = cwp)
 mse
 ```
 
-We detected 20311 peaks in the dataset!
+We detected 9792  peaks in the dataset!
 
-Let's double check if we managed to integrate our known compound:
+Let's double check if we managed to pick our known compound:be
 
 
 ```{r}
@@ -398,16 +417,227 @@ Note: sometimes peaks get wrongly split, for this, xcms has the function `refine
 
 ## Retention time alignment
 
+While chromatography helps to better discriminate between analytes it is also affected by variances that lead to shifts in retention times between measurement runs. Such differences can usually already be seen in a base peak chromatogram or total ion chromatogram.The alignment step aims to minimize these retention time differences between all samples within an experiment (see below for an illustration).
+
+```{r}
+plot(tic,main = "Total Ion Chromatogram")
+
+```
+
+
+
 ![Peak alignment, sketch by J.Rainer & P. Louail](assets/alignment.png)
+
+There exist a lot of retention time alignment algorithms. The two main methods implemented in xcms are the *peakGroups* method (C. A. Smith et al. 2006), which aligns the samples based on so called anchor peaks: these peaks are supposed to represent signal from ions expected to be present in most of the samples of an experiment and the method aligns these samples by minimizing the between-sample retention time differences observed for these peaks. The second method is the *obiwarp* algorithm (Prince and Marcotte 2006), which uses the full *m/z* and retention time data. It's possible to perform retention time using info from all the samples, or only a subset of samples. For more information, see the xcms documentation. Here, since we have limited knowledge of the dataset or possible anchor peaks, we choose to use the *obiwarp* method. In xcms, the alignment can be performed with the `adjustRtime()` function.
+
+
+One important parameter to adjust is `binSize`: , i.e. aggregating of intensity values falling within an m/z bin. Since we are dealing with a high res instrument, we'll set it at 0.01. 
+
+
+```{r}
+mse <- adjustRtime(mse, param = ObiwarpParam(binSize = 0.01))
+```
+
+We can visually evaluate the alignment by plotting the original tic and the adjusted one, as well as a plot of the differences.
+
+
+```{r warning=FALSE}
+tic_adj <- chromatogram(mse, aggregationFun = "sum", chromPeaks = "none")
+par(mfrow = c(3, 1), mar = c(4.5, 4.2, 1, 0.5))
+plot(tic)
+grid()
+plot(tic_adj)
+grid()
+## Plot also the difference of adjusted to raw retention time.
+plotAdjustedRtime(mse)
+grid()
+```
+
+
+Retention time drift certainly wasn't the worst in this dataset, but still we see some small improvement after performing the alignment step.
+
+
+
+Evaluating the impact on our target peak:
+
+
+```{r}
+par(mfrow = c(2, 1))
+## Plot the raw data
+plot(chr_raw)
+grid()
+## Extract the chromatogram from the adjusted object
+chr_adj <- chromatogram(mse, rt = rtr, mz = mzr)
+plot(chr_adj)
+grid()
+```
+
+
+When evaluating the RT alignment in our single peak, we have to admit that it isn't perfect, since the "biggest" peak got shifted a bit too much too the right. In our experience, getting perfect peak alignment for all peaks in a dataset is quite impossible, so one has to try different algorithms and/or subset-based alignment to find results that are sufficiently good for further analysis.
 
 ## Correspondence
 
+The final step of the LC-MS preprocessing with xcms is the correspondence analysis, in which chromatographic peaks from the same types of ions (compounds) are grouped across samples to form the so called *LC-MS features*.
+
 ![Correspondence, sketch by J.Rainer & P. Louail](assets/correspondence2_03.png)
 
+
+In xcms, two correspondence algorithms can be used: `NearestPeaksParam` & `PeakDensityParam`. For our example we use the peak density method. This algorithm iterates through small slices along the m/z dimension and groups, within each slice, chromatographic peaks with similar retention times. 
+
+
+Settings for this algorithm can be best tested and optimized using the plotChromPeakDensity() function on extracted chromatograms. The two main parameters to tune are `bw` and `binSize`
+
+
+Peaks with similar retention time will result in a higher peak density at a certain retention time and are thus grouped together. The grouping depends on the smoothness of the density curve and can be configured with parameter bw.
+
+
+Furthermore, it makes sense to perform correspondence taking into account sample groups, as we might expect different features in case or control samples. We define our groups using the `sampleGroups`parameter.
+
+
+We can illustrate this using our target peak as an example:
+
+
+
+```{r}
+#' Default parameters for peak density; bw = 30
+pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease)
+
+#' Test these settings on the extracted slice
+plotChromPeakDensity(chr_adj, param = pdp)
+```
+
+
+For this particular part of the data, the default settings seem to suffice, as our 4 peaks in the 4 samples succesfully are grouped in the same feature.It is however advisable to evaluate settings on multiple slices, ideally with signal from more than one compound being present.
+
+
+Let's widen to retention time for this slice, and see what happens.
+
+
+```{r}
+chr_adj_wide <- chromatogram(mse, rt = rtr + c(-20,20), mz = mzr)
+plotChromPeakDensity(chr_adj_wide, param = pdp)
+```
+
+
+This slice contains signal from several ions resulting in multiple chromatographic peaks along the retention time axis. With the default settings, in particular with bw = 30, all these peaks were however assigned to the same feature (indicated with the grey rectangle). Signal from different ions would thus be treated as a single entity. We repeat the analysis below with a strongly reduced value for parameter `bw`.
+
+
+
+
+```{r}
+#' Reducing the bandwidth
+pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease, bw = 2)
+plotChromPeakDensity(chr_adj_wide, param = pdp, col = group_colors[chr_adj_wide$Disease],lwd = 2)
+```
+
+
+Setting `bw = 2` strongly reduced the smoothness of the density curve resulting in a good seperation of the of density peaks and hence a nice grouping of (aligned) chromatographic peaks into separate features. Note that the left peak isn't grouped into a feature. This can be explained by the parameter `minFraction` (default = 0.5) which defines the proportion of samples within at least one sample group in which chromatographic peaks need to be identified in order to define a feature. As the peak is only present in 1/4 control samples, and in 1/4 disease samples, it doens't get grouped into a feature. Adjusting to e.g. 0.2 will allow the peaks to be grouped into a feature:
+
+
+```{r}
+# Reducing the minFraction
+pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease, bw = 2,minFraction = 0.2)
+plotChromPeakDensity(chr_adj_wide, param = pdp, col = group_colors[chr_adj_wide$Disease],lwd = 2)
+```
+
+
+Finally, `binSize` defines the m/z widths of the slices along the m/z dimension the algorithm will iterate through. Note that by default a constant m/z width is used, which might however not reflect the m/z-dependent measurement error of some instruments (such as TOF instruments). To address this, the parameter ppm was recently added that allows to generate m/z-dependent bin size.
+
+
+Since we seem to be dealing with a highly accurate instrument, we will allow a maximal difference of the *m/z* of chromatographic peaks of `binSize = 0.01` & 5ppm.
+
+```{r}
+# Reducing the binSize
+pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease, bw = 2,minFraction = 0.5,binSize = 0.01,ppm = 5)
+plotChromPeakDensity(chr_adj_wide, param = pdp, col = group_colors[chr_adj_wide$Disease],lwd = 2)
+```
+
+
+Now that we are satisfied with our settings, we can perform the correspondence on the whole dataset:
+
+
+```{r}
+mse <- groupChromPeaks(mse, param = pdp)
+```
+
+Inspecting the final result also shows all the steps we performed:
+
+```{r}
+mse
+```
+
+
+Finally, just under 1900 features are identified in this dataset.
+
+The results from the correspondence analysis were added to the `XcmsExperiment` object. These can be extracted with the `featureDefinitions()` function, that extracts the definition of the LC-MS features and the `featureValues()` function that extracts the numerical matrix with the feature abundances (in all samples). 
+
+
+
+```{r}
+#' Definition of the features
+featureDefinitions(mse) |>
+    head()
+```
+
+```{r}
+featureValues(mse, method = "maxint") |>
+    head()
+```
+
+
+
+The feature matrix might, as can also be seen  above, contain missing values. These represent features for which no chromatographic peak was identified in one (or more) sample(s). While a number of imputation methods exist to deal with missing values, it might be more advisable to instead rescue signal. xcms provides such gap filling which is explained in the next section.
+
 ## Gap filling
+
+Missing values in feature matrices from an xcms-based preprocessing represent cases in which, in a particular sample, no chromatographic peak was identified in the m/z - retention time region of the feature. This could either represent a truly missing value (because the ion/compound was not present in that sample) or a failure of the peak detection algorithm to identify a peak (either because the measured signal was too noisy, or too low, or a combination of both).
+
+We'll inspect FT0005
+
+```{r}
+FT5 <- featureDefinitions(mse)[5,]
+chrs <- chromatogram(mse, mz = c(FT5$mzmin,FT5$mzmax), rt = c(FT5$rtmin,FT5$rtmax) + c(-10,10))
+plot(chrs, col = group_colors[chr_adj_wide$Disease], lwd = 2)
+```
+
+
+Looking close, the signal was likely too noisy or too sparse in some samples (i.e. to few data points to properly detect a peak). In all cases, however, signal from (presumably) the same ion was measured in both samples. Thus, reporting a missing value would not be correct for these. The aim of the gap filling is now to rescue signal for such features by integrating the intensities measured within the feature’s m/z - retention time area in the sample(s) in which no chromatographic peak was detected.
+
+
+```{r}
+mse <- fillChromPeaks(mse, param = ChromPeakAreaParam())
+```
+
+
+
+```{r}
+
+FT5 <- featureDefinitions(mse)[5,]
+chrs <- chromatogram(mse, mz = c(FT5$mzmin,FT5$mzmax), rt = c(FT5$rtmin,FT5$rtmax) + c(-10,10))
+plot(chrs, col = group_colors[chr_adj_wide$Disease], lwd = 2)
+```
+
+Now all signals are correctly integrated!
+
+
+## Reporting results and used parameters
+
+
+Xcms allos to easily report what steps you performed and which settings you used:
+
+```{r}
+processHistory(mse)
+```
+
+```{r}
+#' Peak detection parameters
+processHistory(mse)[[1]]@param
+```
 
 # Data evaluation
 
 # Conclusion and further analysis
+
+
 
 
