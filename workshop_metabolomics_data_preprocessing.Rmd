@@ -30,11 +30,13 @@ if (!require("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
 
 BiocManager::install("xcms")
-BiocManager::install("MsExperiment")
-BiocManager::install("Spectra")
+install.packages("remotes") 
 remotes::install_github("https://github.com/wkumler/squallms")
 install.packages("RColorBrewer")
 install.packages("RaMS")
+install.packages("ggplot2")
+install.packages("dplyr")
+
 ```
 
 And load the required packages:
@@ -688,7 +690,7 @@ feat_peak_info |>
     knitr::kable(caption = "Output from makeXcmsObjFlat.")
 ```
 
-Next, we extract the most usefull metrics: similarity to a bell curve (beta_corr) and the signal-to-noise ratio (SNR).
+Next, we extract the most useful metrics: similarity to a bell curve (beta_corr) and the signal-to-noise ratio (SNR).
 
 
 ```{r}
