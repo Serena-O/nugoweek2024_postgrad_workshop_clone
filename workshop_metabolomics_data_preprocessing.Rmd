@@ -123,6 +123,8 @@ spectra(ms_data)
 
 ## Centroiding data
 
+**Attention: in order to save time, you can skip this part and read it at home later.**
+
 MS instruments allow to export data in profile or centroid mode. Profile data contains the signal for all discrete m/z values (and retention times) for which the instrument collected data (see first figure below). MS instruments continuously sample and record signals, therefore a mass peak for a single ion in one spectrum will consist of multiple intensities at discrete m/z values. The process to reduce this distribution of signals to a single representative mass peak (the centroid, see second figure below) is called centroiding. 
 
 ![Profile data](assets/serine-profile-mode-data-1.png)
@@ -568,7 +570,7 @@ Since we seem to be dealing with a highly accurate instrument, we will allow a m
 
 ```{r}
 # Reducing the binSize
-pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease, bw = 2,minFraction = 0.5,binSize = 0.01,ppm = 5)
+pdp <- PeakDensityParam(sampleGroups = sampleData(mse)$Disease, bw = 2,minFraction = 0.2,binSize = 0.01,ppm = 5)
 plotChromPeakDensity(chr_adj_wide, param = pdp, col = group_colors[chr_adj_wide$Disease],lwd = 2)
 ```
 
@@ -675,6 +677,9 @@ mse_filtered <- filterFeatures(object = mse, filter = rsd_filter)
 
 
 ## Other approaches
+
+**Attention: in order to save time, you can skip this part and read it at home later.**
+
 
 Recently, a lot of  work on peak data quality has been done by W. Kumler, so we will be using the newly implemented quality metrics in xcms and the package [squallms](https://github.com/wkumler/squallms) to evaluate the quality of the LC-MS features in our dataset. In this section we will provide a short introduction to exploring quality metrics of the features and peaks identified by `xcms.`
 
