@@ -67,7 +67,7 @@ The workflow presented by `xcms` (but also applicable in for example MZmine3 and
 
 * chromatographic peak detection: process in which chromatographic peaks are identified within a sample (file).
 * alignment: process that adjusts for retention time differences (i.e. possible signal drifts from the LC) between measurements/samples.
-* correspondence: grouping of chromatographic peaks (presumably from the same ion) across samples/files into LC-MS features
+* correspondence: grouping of chromatographic peaks (presumably from the same ion) across samples/files into LC-MS features.
 
 
 ## Goals of the workshop
@@ -197,7 +197,7 @@ boxplot(tc, col = group_colors[sampleData(ms_data)$Disease],
 
 # Data preprocessing
 
-In this section, we will go through the 3 main steps of LC-MS preprocessing: peak picking, alignment and correspondence (and gap filling). Remember that you should tailor the parameters and settings to your specific dataset in you are refering to this document in the future.
+In this section, we will go through the 3 main steps of LC-MS preprocessing: peak picking, alignment and correspondence (and gap filling). Remember that you should tailor the parameters and settings to your specific dataset if you are referring to this document in the future.
 
 ## Chromatographic peak detection
 
@@ -265,7 +265,7 @@ chromPeaks(res)
 
 
 We still don't detect any peaks, so let's delve a little bit deeper into the parameters and find out what we can change to improve this.
-Remeber that the help pages usually contain all the info you need!
+Remember that the help pages usually contain all the info you need!
 
 
 ```{r}
@@ -417,7 +417,7 @@ mse
 
 We detected 9792  peaks in the dataset!
 
-Let's double check if we managed to pick our known compound:be
+Let's double check if we managed to pick our known compound:
 
 
 ```{r}
@@ -427,6 +427,7 @@ chromPeaks(mse, mz = c(538.319, 538.321), rt = c(515, 535))
 ```{r}
 eic <- chromatogram(mse,mz = c(538.319, 538.321), rt = c(515,530))
 ```
+
 ```{r}
 plot(eic)
 ```
@@ -504,7 +505,7 @@ The final step of the LC-MS preprocessing with xcms is the correspondence analys
 ![Correspondence, sketch by J.Rainer & P. Louail](assets/correspondence2_03.png)
 
 
-In xcms, two correspondence algorithms can be used: `NearestPeaksParam` & `PeakDensityParam`. For our example we use the peak density method. This algorithm iterates through small slices along the *m/z* dimension and groups, within each slice, chromatographic peaks with similar retention times. 
+In xcms, two correspondence algorithms can be used: `NearestPeaksParam` & `PeakDensityParam`. For our example we use the peak density method. This algorithm iterates through small slices along the *m/z* dimension and, within each slice, groups chromatographic peaks with similar retention times. 
 
 
 Settings for this algorithm can be best tested and optimized using the `plotChromPeakDensity()` function on extracted chromatograms. The two main parameters to tune are `bw` and `binSize`
@@ -589,7 +590,7 @@ mse
 ```
 
 
-Finally, just under 1900 features are identified in this dataset.
+Finally, just under 3700 features are identified in this dataset.
 
 The results from the correspondence analysis were added to the `XcmsExperiment` object. These can be extracted with the `featureDefinitions()` function, that extracts the definition of the LC-MS features and the `featureValues()` function that extracts the numerical matrix with the feature abundances (in all samples). 
 
@@ -614,16 +615,16 @@ The feature matrix might, as can also be seen  above, contain missing values. Th
 
 Missing values in feature matrices from an xcms-based preprocessing represent cases in which, in a particular sample, no chromatographic peak was identified in the *m/z* - retention time region of the feature. This could either represent a truly missing value (because the ion/compound was not present in that sample) or a failure of the peak detection algorithm to identify a peak (either because the measured signal was too noisy, or too low, or a combination of both).
 
-We'll inspect FT0005
+We'll inspect FT0001
 
 ```{r}
-FT5 <- featureDefinitions(mse)[5,]
-chrs <- chromatogram(mse, mz = c(FT5$mzmin,FT5$mzmax), rt = c(FT5$rtmin,FT5$rtmax) + c(-10,10))
+FT1 <- featureDefinitions(mse)[1,]
+chrs <- chromatogram(mse, mz = c(FT1$mzmin,FT1$mzmax), rt = c(FT1$rtmin,FT1$rtmax) + c(-10,10))
 plot(chrs, col = group_colors[chr_adj_wide$Disease], lwd = 2)
 ```
 
 
-Looking close, the signal was likely too noisy or too sparse in some samples (i.e. to few data points to properly detect a peak). In all cases, however, signal from (presumably) the same ion was measured in both samples. Thus, reporting a missing value would not be correct for these. The aim of the gap filling is now to rescue signal for such features by integrating the intensities measured within the feature’s *m/z* - retention time area in the sample(s) in which no chromatographic peak was detected.
+Looking close, the signal was likely too noisy or too sparse in some samples (i.e. to few data points to properly detect a peak). In all cases, however, signal from (presumably) the same ion was measured in the samples. Thus, reporting a missing value would not be correct for these. The aim of the gap filling is now to rescue signal for such features by integrating the intensities measured within the feature’s *m/z* - retention time area in the sample(s) in which no chromatographic peak was detected.
 
 
 ```{r}
@@ -634,8 +635,8 @@ mse <- fillChromPeaks(mse, param = ChromPeakAreaParam())
 
 ```{r}
 
-FT5 <- featureDefinitions(mse)[5,]
-chrs <- chromatogram(mse, mz = c(FT5$mzmin,FT5$mzmax), rt = c(FT5$rtmin,FT5$rtmax) + c(-10,10))
+FT1 <- featureDefinitions(mse)[1,]
+chrs <- chromatogram(mse, mz = c(FT1$mzmin,FT1$mzmax), rt = c(FT1$rtmin,FT1$rtmax) + c(-10,10))
 plot(chrs, col = group_colors[chr_adj_wide$Disease], lwd = 2)
 ```
 
@@ -781,7 +782,7 @@ We can indeed see that most of these features originate from quite bad quality p
 
 ## Further analysis
 
-For downstream analyses, that don’t need access to this MS data anymore, the preprocessing results could be represented equally well using a SummarizedExperiment object, which is Bioconductor’s standard container for large-scale omics data. xcms provides with the quantify() function a convenience function to extract all results from an XcmsExperiment result object and return it as a SummarizedExperiment.
+For downstream analyses, that don’t need access to the MS data anymore, the preprocessing results could be represented equally well using a SummarizedExperiment object, which is Bioconductor’s standard container for large-scale omics data. xcms provides with the quantify() function a convenience function to extract all results from an XcmsExperiment result object and return it as a SummarizedExperiment.
 
 ```{r}
 res <- quantify(mse, method = "sum")
